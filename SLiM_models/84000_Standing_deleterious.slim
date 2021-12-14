@@ -1,0 +1,193 @@
+// Model for standing genetic variation
+// Default: Wright-Fisher model
+
+// Genomic element, ACCase gene
+// Mutation rate: Maize, recombination rate: Maize (diploid outcrossing grass, similar in genome size)
+initialize() {
+	if (!exists("RUNID")) {
+		defineConstant("RUNID", 1); 
+	}
+	defineConstant("S", 5); // Scaling factor
+	defineConstant("Ile1781", 11052);
+	defineConstant("Trp1999", 11706);
+	defineConstant("Trp2027", 11790);
+	defineConstant("Ile2041", 11832);
+	defineConstant("Asp2078", 11943);
+	defineConstant("Cys2088", 11973);
+	defineConstant("Gly2096", 11997);
+	initializeMutationRate(3.0e-8*S); // 1. Reference (Yang, 2017)
+	// m1 mutation type: neutral
+	// 0.5 = dominance coefficient
+	// 0.0 = selection coefficient
+	initializeMutationType("m1", 0.5, "f", 0.0); // non-coding
+	m1.convertToSubstitution = T;
+	initializeMutationType("m2", 0.5, "f", 0.0); // synonymous
+	m2.convertToSubstitution = T;
+	initializeMutationType("m3", 0.5, "g", -0.000154*S, 0.245); // nonsynonymous, using genome-wide estimates from Huber et al. 2018 for A. thaliana/lyrata (2. Reference)
+	m3.convertToSubstitution = T;
+	
+	initializeMutationType("m5", 0.5, "f", 0.0); // herbicide resistance
+	m5.convertToSubstitution = F;
+	m5.color = "red";
+
+	initializeGenomicElementType("g1", c(m2,m3), c(0.25,0.75)); // exon
+	initializeGenomicElementType("g2", m1, 1.0); // intron
+	initializeGenomicElementType("g3", m1, 1.0); // non-coding
+
+	initializeGenomicElement(g3, 0, 584);
+	initializeGenomicElement(g1, 585, 798);
+	initializeGenomicElement(g2, 799, 1385);
+	initializeGenomicElement(g1, 1386, 1449);
+	initializeGenomicElement(g2, 1450, 2081);
+	initializeGenomicElement(g1, 2082, 2439);
+	initializeGenomicElement(g2, 2440, 2524);
+	initializeGenomicElement(g1, 2525, 2731);
+	initializeGenomicElement(g2, 2732, 2814);
+	initializeGenomicElement(g1, 2815, 2976);
+	initializeGenomicElement(g2, 2977, 3087);
+	initializeGenomicElement(g1, 3088, 3180);
+	initializeGenomicElement(g2, 3181, 3345);
+	initializeGenomicElement(g1, 3346, 3441);
+	initializeGenomicElement(g2, 3442, 3544);
+	initializeGenomicElement(g1, 3545, 3718);
+	initializeGenomicElement(g2, 3719, 3794);
+	initializeGenomicElement(g1, 3795, 3888);
+	initializeGenomicElement(g2, 3889, 3961);
+	initializeGenomicElement(g1, 3962, 4149);
+	initializeGenomicElement(g2, 4150, 4235);
+	initializeGenomicElement(g1, 4236, 4286);
+	initializeGenomicElement(g2, 4287, 4443);
+	initializeGenomicElement(g1, 4444, 4483);
+	initializeGenomicElement(g2, 4484, 4564);
+	initializeGenomicElement(g1, 4565, 4689);
+	initializeGenomicElement(g2, 4690, 4802);
+	initializeGenomicElement(g1, 4803, 4919);
+	initializeGenomicElement(g2, 4920, 5015);
+	initializeGenomicElement(g1, 5016, 5090);
+	initializeGenomicElement(g2, 5091, 5162);
+	initializeGenomicElement(g1, 5163, 5219);
+	initializeGenomicElement(g2, 5220, 5303);
+	initializeGenomicElement(g1, 5304, 5408);
+	initializeGenomicElement(g2, 5409, 5491);
+	initializeGenomicElement(g1, 5492, 5578);
+	initializeGenomicElement(g2, 5579, 5975);
+	initializeGenomicElement(g1, 5976, 6167);
+	initializeGenomicElement(g2, 6168, 6249);
+	initializeGenomicElement(g1, 6250, 6438);
+	initializeGenomicElement(g2, 6439, 6832);
+	initializeGenomicElement(g1, 6833, 6943);
+	initializeGenomicElement(g2, 6944, 7352);
+	initializeGenomicElement(g1, 7353, 7442);
+	initializeGenomicElement(g2, 7443, 7510);
+	initializeGenomicElement(g1, 7511, 7687);
+	initializeGenomicElement(g2, 7688, 7861);
+	initializeGenomicElement(g1, 7862, 7939);
+	initializeGenomicElement(g2, 7940, 8020);
+	initializeGenomicElement(g1, 8021, 8143);
+	initializeGenomicElement(g2, 8144, 8234);
+	initializeGenomicElement(g1, 8235, 8504);
+	initializeGenomicElement(g2, 8505, 8709);
+	initializeGenomicElement(g1, 8710, 8957);
+	initializeGenomicElement(g2, 8958, 9028);
+	initializeGenomicElement(g1, 9029, 9266);
+	initializeGenomicElement(g2, 9267, 9368);
+	initializeGenomicElement(g1, 9369, 9721);
+	initializeGenomicElement(g2, 9722, 9807);
+	initializeGenomicElement(g1, 9808, 10021);
+	initializeGenomicElement(g2, 10022, 10214);
+	initializeGenomicElement(g1, 10215, 10394);
+	initializeGenomicElement(g2, 10395, 10481);
+	initializeGenomicElement(g1, 10482, 12617);
+	initializeGenomicElement(g2, 12618, 12778);
+	initializeGenomicElement(g1, 12779, 12835);
+	initializeGenomicElement(g3, 12836, 13199);
+	initializeRecombinationRate(7.4e-9); // 3. Reference (Bauer, 2013)
+}
+
+1 { // save this run's identifier, used to save and restore
+	defineConstant("simID", getSeed());
+	sim.addSubpop("p1", asInteger(84000.0/S));}
+
+
+168000 late () {sim.outputFull("/tmp/slim_" + RUNID + "_" + simID + ".txt");}
+
+
+169999: late () {
+	muts=sim.mutations;
+	targetloci=muts.position[sim.mutations.position == Ile1781 | sim.mutations.position == Trp1999 | sim.mutations.position == Trp2027 | sim.mutations.position == Ile2041 | sim.mutations.position == Asp2078 | sim.mutations.position == Cys2088 | sim.mutations.position == Gly2096];
+	if (size(targetloci) > 0)
+	{cat("TARGET MUTATION - ABUNDANT\n");
+		sim.deregisterScriptBlock(self);}
+	else {cat("TARGET MUTATION - NO OCCURENCE\n");
+		sim.readFromPopulationFile("/tmp/slim_" + RUNID + "_" + simID + ".txt");
+		// start a newly seeded run
+		setSeed(rdunif(1, 0, asInteger(2^62) - 1));}}
+
+// Output before start of herbicide treatment of all haplotypes and vcf with subset of 24 individuals
+170000 early(){ sim.outputFull("/tmp/slim_" + "Run" + RUNID + "_pre_full_standing_var.txt");}
+
+// Gen 0
+170000 early(){ p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_00_standing_var.vcf");}
+
+
+// Herbicide treatment for 30 years/generations (170000-170030), now divided by scaling factor
+//Change selection coefficient for resistance mutations (TSRs)
+170000:170006 early () {muts=sim.mutations;
+	mut=muts[muts.position == Ile1781 | muts.position == Trp1999 | muts.position == Trp2027 | muts.position == Ile2041 | muts.position == Asp2078 | muts.position == Cys2088 | muts.position == Gly2096];
+	mut.setMutationType(m5);}
+
+// Herbicide treatment
+// 170000:170030, now with scaling factor of 5: 170000-170006, each generation representing 5 generations.
+170000:170006 late() {
+	for (ind in p1.individuals){
+		resist = ind.countOfMutationsOfType(m5);
+		if (resist == 0) {
+			ind.fitnessScaling = (1-0.9);   // If ind does not have any resistant mutation, then fitness is 10%
+		} else {
+		   ind.fitnessScaling = (1+1*S);   // Here, the selection coefficient is 1, and 5 after scaling
+		}
+	}
+}
+
+// Output the proportion of individuals that are resistant (i.e. have at least one resistance mutation)
+170000:170006 late(){ 
+	catn("Proportion resistant individuals: " + sum(p1.individuals.countOfMutationsOfType(m5) != 0) / length(p1.individuals));}
+
+// Output of TSRs to log file to generate allele frequency graphs
+170000:170006 late(){ sim.outputMutations(sim.mutationsOfType(m5));}
+
+// Gen 5 after selection
+170001 late() { p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_05_standing_var.vcf"); }
+
+// Gen 10 after selection
+170002 late() { p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_10_standing_var.vcf"); }
+
+// Gen 15 after selection
+170003 late() { p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_15_standing_var.vcf"); }
+
+// Gen 20 after selection
+170004 late() { p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_20_standing_var.vcf"); }
+
+// Gen 25 after selection
+170005 late() { p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_25_standing_var.vcf"); }
+
+// Gen 30 after selection
+170006 late() { p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_30_standing_var.vcf"); }
+
+
+// Colouring observed mutation m5 at the end of each generation
+170000:170006 late() {
+	for (ind in sim.subpopulations.individuals)
+	{resist = ind.countOfMutationsOfType(m5);
+		ind.color = resist ? "red" else "yellow";}}
+
+// 170030 output haplotypes and allele frequencies of all individuals and mutations
+170006 late() { sim.outputFull("/tmp/slim_" + "Run" + RUNID + "_after_full_standing_var.txt"); } 
+
+// Literature:
+
+// 1. Yang N, Xu X-W, Wang R-R, Peng W-L, Cai L, Song J-M et al. Contributions of Zea mays subspecies mexicana haplotypes to modern maize. Nat Commun 2017; 8: 1874.
+
+// 2. Huber CD, Durvasula A, Hancock AM, Lohmueller KE. Gene expression drives the evolution of dominance. Nat Commun 2018; 9: 2750.
+
+// 3. Bauer, Eva, Matthieu Falque, Hildrun Walter, Cyril Bauland, Christian Camisan, Laura Campo, Nina Meyer, et al. 2013. “Intraspecific Variation of Recombination Rate in Maize.” Genome Biology 14 (9): R103.

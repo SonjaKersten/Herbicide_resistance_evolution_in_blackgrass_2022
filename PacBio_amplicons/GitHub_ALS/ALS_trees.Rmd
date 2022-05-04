@@ -1,0 +1,290 @@
+---
+title: "ALS_trees_paper"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(vcfR)
+library(dplyr)
+
+# Read vcf file
+vcf <- read.vcfR('./output_haplotype_PCA_bait/Haplotype_PCA_ALS.ALS_001361Frc_pilon.GVCF.ann.vcf')
+
+vcf_chrom <- create.chromR(name='001361Frc', vcf=vcf)
+genot_matrix <- as.data.frame(extract.gt(vcf_chrom))
+dim(genot_matrix)
+
+# Extract TSR positions from VCF, here only two out of seven possible TSR mutations are present in the VCF
+genot_matrix1 <- genot_matrix[which(rownames(genot_matrix) == "001361Frc_523726" | rownames(genot_matrix) == "001361Frc_524861"), ,drop=FALSE]
+rownames(genot_matrix1) <- as.numeric(sapply(strsplit(rownames(genot_matrix1), "[_]"), "[", 2))
+genot_matrix1
+
+# Known mutations
+ALS_known <- data.frame(matrix(c('genot_Pro197_166.1', 'Pro197_166.1', 523726, 'genot_Trp574_544.2', 'Trp574_544.2', 524861), ncol = 3, byrow = TRUE))
+colnames(ALS_known) <- c('Genotype', 'Simplified','coordinate')
+
+# Define samples
+samples <- colnames(genot_matrix1)
+populations <- sapply(strsplit(as.character(samples), "[_]"), "[", 1)
+country <- substring(populations, 1, 2)
+
+ALS_known
+
+samples <- data.frame(cbind(samples, populations, country))
+samples
+# Extract mutations from genotype matrix
+genot_matrix_subset <- genot_matrix1[ rownames(genot_matrix1) %in% ALS_known$coordinate , ]
+genot_matrix_subset
+rownames(genot_matrix_subset) <- ALS_known$Simplified
+
+
+# Switch rows and columns and add names
+known_TSR_ALS_RAXML <- cbind(samples, t(genot_matrix_subset))
+colnames(known_TSR_ALS_RAXML) [1] <- "sample"
+known_TSR_ALS_RAXML <- as.data.frame(known_TSR_ALS_RAXML)
+head(known_TSR_ALS_RAXML)
+
+# Since in this matrix all the individuals already haplotypes and therefore homozygous, we can eliminate one phase
+
+known_TSR_ALS_RAXML$Pro197_166.1 <- as.numeric(unlist(lapply(strsplit(as.character(known_TSR_ALS_RAXML$Pro197_166.1), "[/|]"), "[", 1)))
+known_TSR_ALS_RAXML$Trp574_544.2 <- as.numeric(unlist(lapply(strsplit(as.character(known_TSR_ALS_RAXML$Trp574_544.2), "[/|]"), "[", 1)))
+
+
+known_TSR_ALS_RAXML
+
+```
+
+```{r}
+unique(known_TSR_ALS_RAXML$Pro197_166.1)
+unique(known_TSR_ALS_RAXML$Trp574_544.2)
+
+
+df3 <- data.frame(matrix(ncol = 3, nrow = 1684))
+x3 <- c("Pro197.1_Thr_A","Pro197.1_Ala_G", "Pro197.1_Ser_T")
+colnames(df3) <- x3
+df3
+
+all_phases <- cbind(known_TSR_ALS_RAXML, df3)
+colnames(all_phases)[5] <- "Trp574.2_Leu_T"
+all_phases
+```
+# Split the multiallelic sites
+```{r}
+all_phases1 <- all_phases
+
+all_phases1 <- mutate(all_phases1, Pro197.1_Thr_A = ifelse(Pro197_166.1 == 1,1,0))
+all_phases1 <- mutate(all_phases1, Pro197.1_Ala_G = ifelse(Pro197_166.1 == 2,1,0))
+all_phases1 <- mutate(all_phases1, Pro197.1_Ser_T = ifelse(Pro197_166.1 == 3,1,0))
+
+# add wildtype column
+all_phases1$wildtype <- as.logical(all_phases1$Pro197.1_Thr_A == 1 | all_phases1$Pro197.1_Ala_G == 1 | all_phases1$Pro197.1_Ser_T ==1 | all_phases1$Trp574.2_Leu_T == 1)
+
+all_phases1 <- mutate(all_phases1, wildtype = ifelse(wildtype == "FALSE",1,0))
+
+all_phases1
+```
+
+# Metadatatable
+```{r}
+metadata <- all_phases1[ ,c(1,2,5:9)]
+metadata
+
+```
+# Transform numbers into mutation names
+```{r}
+metadata1 <- metadata
+
+metadata1 <- mutate(metadata1, Trp574.2_Leu_T = ifelse(Trp574.2_Leu_T == 1,"Trp574.2_Leu_T",NA))
+metadata1 <- mutate(metadata1, Pro197.1_Thr_A = ifelse(Pro197.1_Thr_A == 1,"Pro197.1_Thr_A",NA))
+metadata1 <- mutate(metadata1, Pro197.1_Ala_G = ifelse(Pro197.1_Ala_G == 1,"Pro197.1_Ala_G",NA))
+metadata1 <- mutate(metadata1, Pro197.1_Ser_T = ifelse(Pro197.1_Ser_T == 1,"Pro197.1_Ser_T",NA))
+metadata1 <- mutate(metadata1, wildtype = ifelse(wildtype == 1,"wildtype",NA))
+
+metadata1
+
+```
+
+```{r}
+library(tidyr)
+
+metadata2 <- unite(metadata1, mut, Trp574.2_Leu_T, Pro197.1_Thr_A, Pro197.1_Ala_G, Pro197.1_Ser_T, wildtype , sep = "_", remove = FALSE, na.rm = TRUE)
+metadata2
+
+unique(metadata2$mut)
+
+metadata2
+rownames(metadata2) <- metadata2$sample
+colnames(metadata2) [1] <- "label"
+metadata3 <- metadata2[ ,c(1,2,3)]
+metadata3
+```
+
+```{r}
+pops_list <- unique(metadata3$populations)
+pops_list
+```
+
+# Gene tree TSR ACCase amplicons
+```{r}
+#library(phyloseq)
+library(scales)
+library(ggplot2)
+library(ggtree)
+library(treeio)
+library(dplyr)
+library(tibble)
+
+PATH <- "./output_multiple_alignment_pbaa_ALS_bait/"
+
+for(index in 1:length(pops_list)){
+
+  POPULATION <- pops_list[index]
+  # To run only one population
+  # POPULATION <- "FR01729"
+
+  # Read tree object
+  tree <- read.newick(paste(PATH, POPULATION, "_multiple_alignment.fasta.raxml.supportFBP", sep =""), node.label="support")
+  tree
+
+  # Condition to remove low supported end tip labels
+  is.na(tree@data[["support"]]) <- tree@data[["support"]] < 60
+  POP_tree <- subset(metadata3, populations == POPULATION)
+  POP_tree
+
+  x <- as_tibble(tree)
+  x
+  # Add Metadata to the tree
+
+  y <- full_join(x, POP_tree, by = 'label')
+  y
+
+  # transform to treedata
+  as.treedata(y)
+
+  # Plot first part of the tree
+  p1 <- ggtree(tree) + geom_treescale(fontsize=5.5, linesize=1, offset=1) 
+  p1
+
+  #to move the treescale x= 0.01
+
+  myColors <- c("#000066","#00b8e6","#b3b3ff","#cc9900","#00b300")
+  names(myColors) <- as.factor(c("Pro197.1_Thr_A", "Pro197.1_Ala_G", "Pro197.1_Ser_T","Trp574.2_Leu_T", "wildtype"))
+
+  # Plot second part of the tree
+  p2 <- p1 %<+% y + geom_text2(aes(label=label), hjust=-.1, size=5.5) + geom_tippoint(aes(color= mut),size=5, alpha=0.9,na.rm=TRUE) +     theme(legend.position = "none") + scale_colour_manual(name="TSR mutations", values = myColors) + geom_nodelab(aes(label = support), hjust=1.9, vjust=-0.5, colour= "#737373", size=5) + xlim(0,0.04)
+  p2
+  
+
+  png(file = paste("./ALS_haplotype_trees/", POPULATION, "_ALS_tree.png", sep =""),  width = 450, height = 350, units='mm', res = 300)
+  print(p2)
+  dev.off()
+
+  pdf(file = paste("./ALS_haplotype_trees/", POPULATION, "_ALS_tree.pdf", sep =""), width = 14, height = 14)
+  print(p2)
+  dev.off()
+}
+
+```
+
+# Input files for POPART
+# subset for population
+Search and Replace function for selection to switch to next population
+```{r}
+for(index in 1:length(pops_list)){
+  POPULATION <- pops_list[index]
+
+  POP <- subset(metadata, populations == POPULATION)
+  POP
+  POP$x <- paste(POP$sample, POP$Pro197.1_Thr_A, POP$Pro197.1_Ala_G, POP$Pro197.1_Ser_T,POP$Trp574.2_Leu_T, POP$wildtype, sep=",")
+
+  POP
+  write.table(POP$x , file = paste("./ALS_POPART_nexus_meta_png/", POPULATION, "_ALS_meta.txt", sep =""), row.names = FALSE, col.names = ",Pro197.1_Thr_A,Pro197.1_Ala_G,Pro197.1_Ser_T,Trp574.2_Leu_T,wildtype", quote = FALSE)
+
+} 
+```
+
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+
+
+
+
+

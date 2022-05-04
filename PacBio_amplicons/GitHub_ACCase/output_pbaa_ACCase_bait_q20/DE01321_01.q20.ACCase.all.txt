@@ -1,0 +1,2 @@
+DE01321_01.q20.ACCase.h1.c0.r54.f0.5625_.fasta
+DE01321_01.q20.ACCase.h2.c1.r42.f0.4375_.fasta

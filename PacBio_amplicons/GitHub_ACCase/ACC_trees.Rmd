@@ -1,0 +1,275 @@
+---
+title: "ACC_trees_paper"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(vcfR)
+library(dplyr)
+
+# Read vcf file
+vcf <- read.vcfR('./output_haplotype_PCA_bait/Haplotype_PCA.ACCase_001213F.GVCF.ann.vcf')
+
+vcf_chrom <- create.chromR(name='001213F', vcf=vcf)
+genot_matrix <- as.data.frame(extract.gt(vcf_chrom, mask=FALSE))
+dim(genot_matrix)
+
+# Extract TSR positions
+genot_matrix1 <- genot_matrix[which(rownames(genot_matrix) == "001213F_373853" | rownames(genot_matrix) == "001213F_373854" | rownames(genot_matrix) == "001213F_373855" | rownames(genot_matrix) == "001213F_374507" | rownames(genot_matrix) == "001213F_374508" | rownames(genot_matrix) == "001213F_374509" | rownames(genot_matrix) == "001213F_374591" | rownames(genot_matrix) == "001213F_374592" | rownames(genot_matrix) =="001213F_374593" | rownames(genot_matrix) =="001213F_374633" | rownames(genot_matrix) =="001213F_374634" | rownames(genot_matrix) =="001213F_374635" |  rownames(genot_matrix) == "001213F_374744"| rownames(genot_matrix) == "001213F_374745"| rownames(genot_matrix) == "001213F_374746"| rownames(genot_matrix) == "001213F_374774" | rownames(genot_matrix) == "001213F_374775" | rownames(genot_matrix) == "001213F_374776" | rownames(genot_matrix) == "001213F_374798" | rownames(genot_matrix) == "001213F_374799" | rownames(genot_matrix) == "001213F_374800"), ,drop=FALSE]
+
+rownames(genot_matrix1) <- as.numeric(sapply(strsplit(rownames(genot_matrix1), "[_]"), "[", 2))
+
+genot_matrix1
+
+# Known mutations
+ACCase_known <- data.frame(matrix(c('genot_Ile1781.1', 'Ile1781.1', 373853, 'genot_Ile1781.2', 'Ile1781.2_Thr_C', 373854, 'genot_Trp1999.2', 'Trp1999.2_Leu_T', 374508, 'genot_Trp2027.3', 'Trp2027.3', 374593, 'genot_Ile2041.2', 'Ile2041.2_Asn_A', 374634, 'genot_Asp2078.2', 'Asp2078.2_Gly_G', 374745), ncol = 3, byrow = TRUE))
+colnames(ACCase_known) <- c('Genotype', 'Simplified','coordinate')
+
+ACCase_known
+
+# Define samples
+samples <- colnames(genot_matrix1)
+populations <- sapply(strsplit(as.character(samples), "[_]"), "[", 1)
+country <- substring(populations, 1, 2)
+samples <- data.frame(cbind(samples, populations, country))
+samples
+
+# Extract mutations from genotype matrix
+genot_matrix_subset <- genot_matrix1[ rownames(genot_matrix1) %in% ACCase_known$coordinate , ]
+genot_matrix_subset
+rownames(genot_matrix_subset) <- ACCase_known$Simplified
+
+
+# Switch rows and columns and add names
+known_TSR_ACC_RAXML <- cbind(samples, t(genot_matrix_subset))
+colnames(known_TSR_ACC_RAXML) [1] <- "sample"
+known_TSR_ACC_RAXML <- as.data.frame(known_TSR_ACC_RAXML)
+head(known_TSR_ACC_RAXML)
+
+# Since in this matrix all the individuals already haplotypes and therefore homozygous, we can eliminate one phase
+known_TSR_ACC_RAXML$Ile1781.1 <- as.numeric(unlist(lapply(strsplit(as.character(known_TSR_ACC_RAXML$Ile1781.1), "[/|]"), "[", 1)))
+known_TSR_ACC_RAXML$Ile1781.2_Thr_C <- as.numeric(unlist(lapply(strsplit(as.character(known_TSR_ACC_RAXML$Ile1781.2_Thr_C), "[/|]"), "[", 1)))
+known_TSR_ACC_RAXML$Trp1999.2_Leu_T <- as.numeric(unlist(lapply(strsplit(as.character(known_TSR_ACC_RAXML$Trp1999.2_Leu_T), "[/|]"), "[", 1)))
+known_TSR_ACC_RAXML$Trp2027.3 <- as.numeric(unlist(lapply(strsplit(as.character(known_TSR_ACC_RAXML$Trp2027.3), "[/|]"), "[", 1)))
+known_TSR_ACC_RAXML$Ile2041.2_Asn_A <- as.numeric(unlist(lapply(strsplit(as.character(known_TSR_ACC_RAXML$Ile2041.2_Asn_A), "[/|]"), "[", 1)))
+known_TSR_ACC_RAXML$Asp2078.2_Gly_G <- as.numeric(unlist(lapply(strsplit(as.character(known_TSR_ACC_RAXML$Asp2078.2_Gly_G), "[/|]"), "[", 1)))
+
+known_TSR_ACC_RAXML
+```
+
+```{r}
+unique(known_TSR_ACC_RAXML$Ile1781.1)
+
+# sample UK01726_24.h1 got NA for position Ile1781.1. After checking IGV it is Alternative 1:
+
+known_TSR_ACC_RAXML$Ile1781.1[ which(known_TSR_ACC_RAXML$sample == 'UK01726_24.h1')  ] <- 1
+
+unique(known_TSR_ACC_RAXML$Ile1781.1)
+
+unique(known_TSR_ACC_RAXML$Ile1781.2_Thr_C)
+unique(known_TSR_ACC_RAXML$Trp1999.2_Leu_T)
+unique(known_TSR_ACC_RAXML$Ile2041.2_Asn_A)
+unique(known_TSR_ACC_RAXML$Asp2078.2_Gly_G)
+unique(known_TSR_ACC_RAXML$Trp2027.3)
+
+
+df3 <- data.frame(matrix(ncol = 5, nrow = 2092))
+x3 <- c("Ile1781.1_Leu_T","Ile1781.1_Leu_C", "Ile1781.1_Val_G", "Trp2027.3_Cys_T", "Trp2027.3_Cys_C")
+colnames(df3) <- x3
+df3
+
+all_phases <- cbind(known_TSR_ACC_RAXML, df3)
+all_phases
+```
+
+# Split the multiallelic sites
+```{r}
+all_phases1 <- all_phases
+
+all_phases1 <- mutate(all_phases1, Ile1781.1_Leu_T = ifelse(Ile1781.1 == 1,1,0))
+all_phases1 <- mutate(all_phases1, Ile1781.1_Leu_C = ifelse(Ile1781.1 == 2,1,0))
+all_phases1 <- mutate(all_phases1, Ile1781.1_Val_G = ifelse(Ile1781.1 == 3,1,0))
+all_phases1 <- mutate(all_phases1, Trp2027.3_Cys_T = ifelse(Trp2027.3 == 1,1,0))
+all_phases1 <- mutate(all_phases1, Trp2027.3_Cys_C = ifelse(Trp2027.3 == 2,1,0))
+
+# add wildtype column
+all_phases1$wildtype <- as.logical(all_phases1$Ile1781.1_Leu_T == 1 | all_phases1$Ile1781.1_Leu_C == 1 | all_phases1$Ile1781.1_Val_G ==1 | all_phases1$Trp2027.3_Cys_T == 1| all_phases1$Trp2027.3_Cys_C == 1| all_phases1$Ile1781.2_Thr_C == 1 | all_phases1$Trp1999.2_Leu_T == 1 | all_phases1$Ile2041.2_Asn_A == 1 | all_phases1$Asp2078.2_Gly_G == 1)
+
+all_phases1 <- mutate(all_phases1, wildtype = ifelse(wildtype == "FALSE",1,0))
+
+all_phases1
+
+```
+
+# Metadatatable
+```{r}
+# relevant columns
+metadata <- all_phases1[ ,c(1,2,10,11,12,5,6,13,14,8,9,15)]
+metadata
+```
+
+# Transform numbers into mutation names
+```{r}
+metadata1 <- metadata
+
+metadata1 <- mutate(metadata1, Ile1781.1_Leu_T = ifelse(Ile1781.1_Leu_T == 1,"Ile1781.1_Leu_T",NA))
+metadata1 <- mutate(metadata1, Ile1781.1_Leu_C = ifelse(Ile1781.1_Leu_C == 1,"Ile1781.1_Leu_C",NA))
+metadata1 <- mutate(metadata1, Ile1781.1_Val_G = ifelse(Ile1781.1_Val_G == 1,"Ile1781.1_Val_G",NA))
+metadata1 <- mutate(metadata1, Ile1781.2_Thr_C = ifelse(Ile1781.2_Thr_C == 1,"Ile1781.2_Thr_C",NA))
+metadata1 <- mutate(metadata1, Trp1999.2_Leu_T = ifelse(Trp1999.2_Leu_T == 1,"Trp1999.2_Leu_T",NA))
+metadata1 <- mutate(metadata1, Trp2027.3_Cys_T = ifelse(Trp2027.3_Cys_T == 1,"Trp2027.3_Cys_T",NA))
+metadata1 <- mutate(metadata1, Trp2027.3_Cys_C = ifelse(Trp2027.3_Cys_C == 1,"Trp2027.3_Cys_C",NA))
+metadata1 <- mutate(metadata1, Ile2041.2_Asn_A = ifelse(Ile2041.2_Asn_A == 1,"Ile2041.2_Asn_A",NA))
+metadata1 <- mutate(metadata1, Asp2078.2_Gly_G = ifelse(Asp2078.2_Gly_G == 1,"Asp2078.2_Gly_G",NA))
+metadata1 <- mutate(metadata1, wildtype = ifelse(wildtype == 1,"wildtype",NA))
+
+metadata1$Ile1781.1_Leu_T <- as.character(metadata1$Ile1781.1_Leu_T)
+metadata1
+
+```
+
+```{r}
+library(tidyr)
+
+metadata2 <- unite(metadata1, mut, Ile1781.1_Leu_T, Ile1781.1_Leu_C, Ile1781.1_Val_G, Ile1781.2_Thr_C, Trp1999.2_Leu_T, Trp2027.3_Cys_T, Trp2027.3_Cys_C, Ile2041.2_Asn_A, Asp2078.2_Gly_G, wildtype , sep = "_", remove = FALSE, na.rm = TRUE)
+metadata2
+
+unique(metadata2$mut)
+
+metadata2
+rownames(metadata2) <- metadata2$sample
+colnames(metadata2) [1] <- "label"
+metadata3 <- metadata2[ ,c(1,2,3)]
+metadata3
+```
+
+```{r}
+unique(metadata3$populations)
+pops_list <- unique(metadata3$populations)
+pops_list
+```
+
+# Gene tree TSR ACCase amplicons
+```{r}
+library(phyloseq)
+library(scales)
+library(ggplot2)
+library(ggtree)
+library(treeio)
+library(dplyr)
+library(tibble)
+
+PATH <- "./output_multiple_alignment_pbaa_ACCase_bait/"
+for(index in 1:length(pops_list)){
+
+  POPULATION <- pops_list[index]
+
+  # For testing with one population  
+  #POPULATION <- "BE01364" 
+
+# Read tree object
+  tree <- read.newick(paste(PATH, POPULATION, "_multiple_alignment.fasta.raxml.supportFBP", sep =""), node.label="support")
+  tree
+
+# Condition to remove low supported end tip labels
+  is.na(tree@data[["support"]]) <- tree@data[["support"]] < 60
+  POP_tree <- subset(metadata3, populations == POPULATION)
+  POP_tree
+
+  x <- as_tibble(tree)
+  x
+# Add Metadata to the tree
+  y <- full_join(x, POP_tree, by = 'label')
+  y
+
+# transform to treedata
+  as.treedata(y)
+
+# Plot first part of the tree
+  p1 <- ggtree(tree) + geom_treescale(x=0.006, y=0, fontsize=5.5, linesize=1, offset=1) 
+  p1
+  
+# Colors
+  myColors <- c("#bd0026","#ff8080", "#800026","#fd8d3c","#006666","#ff00ff","#f1b6da","#002db3","#e6b800","#00b300")
+  names(myColors) <- as.factor(c("Ile1781.1_Leu_T", "Ile1781.1_Leu_C", "Ile1781.1_Val_G", "Ile1781.2_Thr_C", "Trp1999.2_Leu_T", "Trp2027.3_Cys_T", "Trp2027.3_Cys_C", "Ile2041.2_Asn_A", "Asp2078.2_Gly_G", "wildtype"))
+
+# Plot second part of the tree
+  p2 <- p1 %<+% y + geom_text2(aes(label=label), hjust=-.1, size=5.5) + geom_tippoint(aes(color= mut),size=5, alpha=0.9,na.rm=TRUE) + theme(legend.position = "none") +   scale_colour_manual(name="TSR mutations", values = myColors) + xlim(0,0.0085) + geom_nodelab(aes(label = support), hjust=1.7, vjust=-0.2, colour= "#737373", size=5)
+  p2
+  
+# Some pops need some adaptation in the treescale (+ geom_treescale(x=0.006, y=0)), if x and y is not specified the treescale is center bottom
+# Also sometimes adaptatiom in xlim() is necessary to stretch out the trees a bit!
+  
+# if legend is needed: + theme(legend.position = c(0.2, 0.85))
+  
+png(file = paste("./ACC_haplotype_trees/" , POPULATION, "_ACC_tree.png", sep =""),  width = 450, height = 350, units='mm', res = 300)
+  print(p2)
+  dev.off()
+  
+# Alternative
+  #ggsave(file=paste("/Users/skersten/Desktop/ACC_amplicons/Haplotype_trees/" , POPULATION, "_ACC_tree.png", sep =""))
+
+pdf(file = paste("./ACC_haplotype_trees/" , POPULATION, "_ACC_tree.pdf", sep =""), width = 14, height = 14)
+  print(p2)
+  dev.off()
+}
+
+```
+
+# Input files for POPART
+# subset for population
+Search and Replace function for selection to switch to next population
+```{r}
+for(index in 1:length(pops_list)){
+  POPULATION <- pops_list[index]
+  
+  POP <- subset(metadata, populations == POPULATION)
+  POP$x <- paste(POP$sample,POP$Ile1781.1_Leu_T, POP$Ile1781.1_Leu_C, POP$Ile1781.1_Val_G, POP$Ile1781.2_Thr_C, POP$Trp1999.2_Leu_T, POP$Trp2027.3_Cys_T, POP$Trp2027.3_Cys_C, POP$Ile2041.2_Asn_A, POP$Asp2078.2_Gly_G, POP$wildtype, sep=",")
+
+  POP
+  write.table(POP$x, file = paste("./ACC_POPART_nexus_meta_png/", POPULATION, "_ACC_meta.txt", sep =""), row.names = FALSE, col.names = ",Ile1781.1_Leu_T,Ile1781.1_Leu_C,Ile1781.1_Val_G,Ile1781.2_Thr_C,Trp1999.2_Leu_T,Trp2027.3_Cys_T,Trp2027.3_Cys_C,Ile2041.2_Asn_A,Asp2078.2_Gly_G,wildtype", quote = FALSE)
+            
+} 
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+

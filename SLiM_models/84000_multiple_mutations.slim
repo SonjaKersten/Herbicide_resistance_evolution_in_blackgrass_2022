@@ -1,4 +1,4 @@
-// Model for de-novo mutations
+// Model for standing genetic variation
 // Default: Wright-Fisher model
 
 // Genomic element, ACCase gene
@@ -26,7 +26,7 @@ initialize() {
 	initializeMutationType("m3", 0.5, "g", -0.000154*S, 0.245); // non-synonymous, using genome-wide estimates from Huber et al. 2018 for A. thaliana/lyrata (2. Reference)
 	m3.convertToSubstitution = T;
 	
-	initializeMutationType("m5", 0.5, "f", 0.0); // herbicide resistance
+	initializeMutationType("m5", 0.5, "f", 0.0); // herbicide resistance.
 	m5.convertToSubstitution = F;
 	m5.color = "red";
 
@@ -106,81 +106,77 @@ initialize() {
 
 1 { // save this run's identifier, used to save and restore
 	defineConstant("simID", getSeed());
-	sim.addSubpop("p1", asInteger(42000.0/S));}
+	sim.addSubpop("p1", asInteger(84000.0/S));}
 
-84000 late () {sim.outputFull("/tmp/slim_" + RUNID + "_" + simID + ".txt");}
-
-
-93999: late () {
+167999: late () {
 	muts=sim.mutations;
 	targetloci=muts.position[sim.mutations.position == Ile1781 | sim.mutations.position == Trp1999 | sim.mutations.position == Trp2027 | sim.mutations.position == Ile2041 | sim.mutations.position == Asp2078 | sim.mutations.position == Cys2088 | sim.mutations.position == Gly2096];
-	if (size(targetloci) == 0)
-	{cat("TARGET MUTATION - NO OCCURENCE\n");
+	if (size(targetloci) > 0)
+	{cat("TARGET MUTATION - ABUNDANT\n");
 		sim.deregisterScriptBlock(self);}
-	else {cat("TARGET MUTATION - ABUNDANT\n");
-		sim.readFromPopulationFile("/tmp/slim_" + RUNID + "_" + simID + ".txt");
-		// start a newly seeded run
-		setSeed(rdunif(1, 0, asInteger(2^62) - 1));}}
+	else {cat("TARGET MUTATION - NO OCCURENCE\n");
+        sim.deregisterScriptBlock(self);}}
 
 // Output before start of herbicide treatment of all haplotypes and vcf with subset of 24 individuals
-94000 early(){ sim.outputFull("/tmp/slim_" + "Run" + RUNID + "_pre_full_denovo.txt");}
+168000 early(){ sim.outputFull("/tmp/slim_" + "Run" + RUNID + "_pre_full_standing_var.txt");}
 
 // Gen 0
-94000 early(){ p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_00_denovo.vcf");}
+168000 early(){ p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_00_standing_var.vcf");}
 
 
-// Herbicide treatment for 30 years/generations (94000-94030), now divided by scaling factor
-// Change selection coefficient for resistance mutations (TSRs)
-94000:94006 early () {muts=sim.mutations;
+// Herbicide treatment for 30 years/generations (168000-168030), divided by scaling factor
+//Change of selection coefficient for resistance mutations (TSRs)
+168000:168006 early () {muts=sim.mutations;
 	mut=muts[muts.position == Ile1781 | muts.position == Trp1999 | muts.position == Trp2027 | muts.position == Ile2041 | muts.position == Asp2078 | muts.position == Cys2088 | muts.position == Gly2096];
 	mut.setMutationType(m5);}
 
 // Herbicide treatment
-// 94000:94030, now with scaling factor of 5: 94000-94006, each generation representing 5 generations.
-94000:94006 late() {
+//168000:168030, with scaling factor of 5: 168000-168006, each generation representing 5 generations.
+168000:168006 late() {
 	for (ind in p1.individuals){
 		resist = ind.countOfMutationsOfType(m5);
 		if (resist == 0) {
 			ind.fitnessScaling = (1-0.9);   // If ind does not have any resistant mutation, then fitness is 10%
 		} else {
-		   ind.fitnessScaling = (1+1*S);   // Here, the selection coefficient is 1, and 5 after scaling
+		   ind.fitnessScaling = (1+1*S);
 		}
 	}
 }
 
-// Output the proportion of individuals that are resistant (i.e. have at least one resistance mutation)
-94000:94006 late(){ 
+//Output the proportion of individuals that are resistant (i.e. have at least one resistance mutation)
+168000:168006 late(){
 	catn("Proportion resistant individuals: " + sum(p1.individuals.countOfMutationsOfType(m5) != 0) / length(p1.individuals));}
 
 // Output of TSRs to log file to generate allele frequency graphs
-94000:94006 late(){ sim.outputMutations(sim.mutationsOfType(m5));}
+168000:168006 late(){ sim.outputMutations(sim.mutationsOfType(m5));}
 
 // Gen 5 after selection
-94001 late() { p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_05_denovo.vcf"); }
+168001 late() { p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_05_standing_var.vcf"); }
 
 // Gen 10 after selection
-94002 late() { p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_10_denovo.vcf"); }
+168002 late() { p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_10_standing_var.vcf"); }
 
 // Gen 15 after selection
-94003 late() { p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_15_denovo.vcf"); }
+168003 late() { p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_15_standing_var.vcf"); }
 
 // Gen 20 after selection
-94004 late() { p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_20_denovo.vcf"); }
+168004 late() { p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_20_standing_var.vcf"); }
 
 // Gen 25 after selection
-94005 late() { p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_25_denovo.vcf"); }
+168005 late() { p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_25_standing_var.vcf"); }
 
 // Gen 30 after selection
-94006 late() { p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_30_denovo.vcf"); }
+168006 late() { p1.outputVCFSample(24, filePath = "/tmp/slim_" + "Run" + RUNID + "_30_standing_var.vcf"); }
+
 
 // Colouring observed mutation m5 at the end of each generation
-94000:94006 late() {
+168000:168006 late() {
 	for (ind in sim.subpopulations.individuals)
 	{resist = ind.countOfMutationsOfType(m5);
 		ind.color = resist ? "red" else "yellow";}}
 
-// 94030 output haplotypes and allele frequencies of all individuals and mutations
-94006 late() { sim.outputFull("/tmp/slim_" + "Run" + RUNID + "_after_full_denovo.txt"); } 
+//168030 output haplotypes and allele frequencies of all individuals and mutations
+168006 late() { sim.outputFull("/tmp/slim_" + "Run" + RUNID + "_after_full_standing_var.txt"); }
 
 // Literature:
 
